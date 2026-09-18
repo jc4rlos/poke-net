@@ -161,14 +161,11 @@ jobs:
           Write-Host "[INFO] Iniciando Kestrel en background..." -ForegroundColor Cyan
 
           $scriptPath = Join-Path $env:DEPLOY_PATH "start-kestrel.ps1"
-          $logPath = $env:LOG_FILE_PATH
 
           Start-Process -NoNewWindow -FilePath powershell.exe `
-            -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Port $env:KESTREL_PORT" `
-            -RedirectStandardOutput $logPath `
-            -RedirectStandardError $logPath
+            -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Port $env:KESTREL_PORT"
 
-          Start-Sleep -Seconds 2
+          Start-Sleep -Seconds 3
 
           if (Test-NetConnection -ComputerName localhost -Port $env:KESTREL_PORT -WarningAction SilentlyContinue) {
             Write-Host "[OK] Kestrel está escuchando en $env:KESTREL_URL" -ForegroundColor Green
@@ -176,7 +173,7 @@ jobs:
             Write-Host "[WARN] Verificando Kestrel..." -ForegroundColor Yellow
           }
 
-          Write-Host "[INFO] Log disponible en: $logPath" -ForegroundColor Cyan
+          Write-Host "[INFO] Para ver logs: Get-Content $env:LOG_FILE_PATH -Tail 50" -ForegroundColor Cyan
 
       - name: Resumen del despliegue
         if: success()
