@@ -1,0 +1,78 @@
+name: Create Dev Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Sufijo de versión (opcional, ej: alpha, beta, rc1)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Validar que estamos en develop
+        run: |
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_BRANCH" != "develop" ]; then
+            echo "ERROR: Este workflow solo funciona en la rama develop"
+            exit 1
+          fi
+          echo "En rama develop"
+
+      - name: Leer version del appsettings.json
+        id: version
+        run: |
+          echo "DEBUG: Archivos en raiz del repo:"
+          ls -la | grep -i appsettings || echo "No se encontró appsettings"
+
+          VERSION=$(grep -o '"Version": "[^"]*"' appsettings.json | cut -d'"' -f4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version encontrada: $VERSION"
+
+      - name: Generar tag dev-vVERSION
+        id: tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_SUFFIX="${{ inputs.version_suffix }}"
+
+          if [ -z "$VERSION_SUFFIX" ]; then
+            TAG="dev-v$VERSION"
+          else
+            TAG="dev-v$VERSION-$VERSION_SUFFIX"
+          fi
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "TAG generado: $TAG"
+
+      - name: Crear y pushear tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$TAG" -m "Tag de desarrollo - $(date)"
+          git push origin "$TAG"
+
+          echo "Tag '$TAG' creado y pusheado"
+
+      - name: Notificar resultado
+        run: |
+          echo "## Tag de Desarrollo Creado"
+          echo ""
+          echo "**Tag:** \`${{ steps.tag.outputs.tag }}\`"
+          echo "**Rama:** develop"
+          echo "**Commit:** $(git rev-parse HEAD)"
+          echo ""
+          echo "Próximo paso: Disparar el workflow de deploy manual pasando este tag."
