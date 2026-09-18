@@ -24,137 +24,61 @@ jobs:
         env:
           KESTREL_PORT: ${{ vars.KESTREL_PORT }}
         run: |
-          Write-Host "[INFO] Buscando proceso en puerto $env:KESTREL_PORT..." -ForegroundColor Cyan
           $connection = Get-NetTCPConnection -LocalPort $env:KESTREL_PORT -State Listen -ErrorAction SilentlyContinue
           if ($connection) {
             $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
             if ($process) {
-              Write-Host "[INFO] Deteniendo: $($process.Name) (PID: $($process.Id))" -ForegroundColor Yellow
               Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
               Start-Sleep -Seconds 2
-              Write-Host "[OK] Proceso detenido" -ForegroundColor Green
             }
-          } else {
-            Write-Host "[INFO] No hay nada escuchando en puerto $env:KESTREL_PORT" -ForegroundColor Cyan
           }
 
-      - name: Checkout al tag especificado
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag }}
           fetch-depth: 0
 
-      - name: Validar formato del tag
-        shell: powershell
-        run: |
-          $tag = "${{ github.event.inputs.tag }}"
-          if ($tag -notmatch '^dev-v\d+\.\d+\.\d+') {
-            Write-Host "ERROR: El tag debe tener formato dev-vX.X.X" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host "[OK] Tag validado: $tag" -ForegroundColor Green
-
-      - name: Setup .NET 8
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restaurar dependencias
-        shell: powershell
-        run: |
-          Write-Host "[INFO] Restaurando dependencias..." -ForegroundColor Cyan
-          dotnet restore
-          Write-Host "[OK] Dependencias restauradas" -ForegroundColor Green
+      - name: Restore
+        run: dotnet restore
 
-      - name: Compilar (Release)
-        shell: powershell
-        run: |
-          Write-Host "[INFO] Compilando en modo Release..." -ForegroundColor Cyan
-          dotnet build -c Release --no-restore
-          Write-Host "[OK] Compilacion completada" -ForegroundColor Green
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
-      - name: Publicar a carpeta de despliegue
-        shell: powershell
-        run: |
-          $deployPath = $env:DEPLOY_PATH
-          Write-Host "[INFO] Publicando a: $deployPath" -ForegroundColor Cyan
-          if (-not (Test-Path $deployPath)) {
-            New-Item -ItemType Directory -Path $deployPath -Force | Out-Null
-          }
-          dotnet publish -c Release -o $deployPath --no-build
-          Write-Host "[OK] Publicacion completada" -ForegroundColor Green
-
-      - name: Validar publicacion
-        shell: powershell
-        run: |
-          $deployPath = $env:DEPLOY_PATH
-          if (-not (Test-Path "$deployPath/appsettings.json")) {
-            Write-Host "ERROR: $deployPath/appsettings.json no existe" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host "[OK] Publicacion validada" -ForegroundColor Green
+      - name: Publish
+        run: dotnet publish -c Release -o ${{ vars.DEPLOY_PATH }} --no-build
 
   deploy:
     name: Deploy to Kestrel
     needs: build
     runs-on: self-hosted
-    env:
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-      KESTREL_PORT: ${{ vars.KESTREL_PORT }}
-      KESTREL_URL: ${{ vars.KESTREL_URL }}
-      APP_NAME: ${{ vars.APP_NAME }}
 
     steps:
-      - name: Crear script de inicio
+      - name: Create start script
         shell: powershell
         run: |
-          $scriptPath = Join-Path $env:DEPLOY_PATH "start-kestrel.ps1"
-          $port = $env:KESTREL_PORT
-          $appName = $env:APP_NAME
-          $deployPath = $env:DEPLOY_PATH
+          $port = "${{ vars.KESTREL_PORT }}"
+          $path = "${{ vars.DEPLOY_PATH }}"
+          $script = @"
+          param([int]`$Port = $port)
+          `$env:ASPNETCORE_URLS = "http://+:`$Port"
+          `$env:ASPNETCORE_ENVIRONMENT = "Development"
+          cd "$path"
+          dotnet PokeNet.dll
+"@
+          $script | Set-Content -Path "$path\start-kestrel.ps1" -Force
 
-          $content = "param(`$Port = $port)`n" +
-            "Write-Host 'Puerto: '`$Port -ForegroundColor Yellow`n" +
-            "`$env:ASPNETCORE_URLS = 'http://+:'`$Port`n" +
-            "`$env:ASPNETCORE_ENVIRONMENT = 'Development'`n" +
-            "cd '$deployPath'`n" +
-            "dotnet PokeNet.dll`n"
-
-          Set-Content -Path $scriptPath -Value $content -Force
-          Write-Host "[OK] Script creado: $scriptPath" -ForegroundColor Green
-
-      - name: Iniciar Kestrel en background
+      - name: Start Kestrel
         shell: powershell
         run: |
-          $scriptPath = Join-Path $env:DEPLOY_PATH "start-kestrel.ps1"
-          Write-Host "[INFO] Iniciando Kestrel..." -ForegroundColor Cyan
-
-          Start-Process -NoNewWindow -FilePath powershell.exe `
-            -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Port $env:KESTREL_PORT"
-
+          $scriptPath = "${{ vars.DEPLOY_PATH }}\start-kestrel.ps1"
+          Start-Process -NoNewWindow -FilePath powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Port ${{ vars.KESTREL_PORT }}"
           Start-Sleep -Seconds 3
-
-          if (Test-NetConnection -ComputerName localhost -Port $env:KESTREL_PORT -WarningAction SilentlyContinue) {
-            Write-Host "[OK] Kestrel escuchando en $env:KESTREL_URL" -ForegroundColor Green
-          } else {
-            Write-Host "[WARN] Verificando..." -ForegroundColor Yellow
+          if (Test-NetConnection -ComputerName localhost -Port ${{ vars.KESTREL_PORT }} -WarningAction SilentlyContinue) {
+            Write-Host "OK - Kestrel running at ${{ vars.KESTREL_URL }}" -ForegroundColor Green
           }
-
-      - name: Resumen
-        if: success()
-        shell: powershell
-        run: |
-          Write-Host ""
-          Write-Host "DESPLIEGUE COMPLETADO" -ForegroundColor Green
-          Write-Host "Tag: ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
-          Write-Host "URL: $env:KESTREL_URL" -ForegroundColor Cyan
-          Write-Host ""
-
-      - name: Error
-        if: failure()
-        shell: powershell
-        run: |
-          Write-Host ""
-          Write-Host "FALLO EN EL DESPLIEGUE" -ForegroundColor Red
-          Write-Host ""
-          exit 1
