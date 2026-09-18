@@ -19,6 +19,26 @@ jobs:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
 
     steps:
+      - name: Detener PokeNet anterior (por puerto)
+        shell: powershell
+        env:
+          KESTREL_PORT: ${{ vars.KESTREL_PORT }}
+        run: |
+          Write-Host "[INFO] Buscando proceso en puerto $env:KESTREL_PORT..." -ForegroundColor Cyan
+          $connection = Get-NetTCPConnection -LocalPort $env:KESTREL_PORT -State Listen -ErrorAction SilentlyContinue
+
+          if ($connection) {
+            $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+            if ($process) {
+              Write-Host "[INFO] Deteniendo: $($process.Name) (PID: $($process.Id))" -ForegroundColor Yellow
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+              Start-Sleep -Seconds 2
+              Write-Host "[OK] Proceso detenido" -ForegroundColor Green
+            }
+          } else {
+            Write-Host "[INFO] No hay nada escuchando en puerto $env:KESTREL_PORT" -ForegroundColor Cyan
+          }
+
       - name: Checkout al tag especificado
         uses: actions/checkout@v4
         with:
