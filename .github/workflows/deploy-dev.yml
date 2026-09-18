@@ -128,31 +128,36 @@ jobs:
         shell: powershell
         run: |
           $scriptPath = Join-Path $env:DEPLOY_PATH "start-kestrel.ps1"
-          $lines = @(
-            'param([int]$Port = ' + $env:KESTREL_PORT + ')',
-            '',
-            'Write-Host "===============================================================" -ForegroundColor Cyan',
-            'Write-Host "  Iniciando ' + $env:APP_NAME + ' en Kestrel" -ForegroundColor Cyan',
-            'Write-Host "===============================================================" -ForegroundColor Cyan',
-            'Write-Host ""',
-            'Write-Host "Puerto: $Port" -ForegroundColor Yellow',
-            'Write-Host "URL: http://localhost:$Port" -ForegroundColor Yellow',
-            'Write-Host ""',
-            '',
-            '$env:ASPNETCORE_URLS = "http://+:$Port"',
-            '$env:ASPNETCORE_ENVIRONMENT = "Development"',
-            '',
-            'cd "' + $env:DEPLOY_PATH + '"',
-            '',
-            'Write-Host "Iniciando aplicación..." -ForegroundColor Cyan',
-            'Write-Host ""',
-            '',
-            'dotnet PokeNet.dll',
-            '',
-            'Write-Host ""',
-            'Write-Host "Aplicación detenida" -ForegroundColor Yellow'
-          )
-          $lines | Set-Content -Path $scriptPath -Force
+          $port = $env:KESTREL_PORT
+          $appName = $env:APP_NAME
+          $deployPath = $env:DEPLOY_PATH
+
+          $script = @"
+param([int]`$Port = $port)
+
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host "  Iniciando $appName en Kestrel" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Puerto: `$Port" -ForegroundColor Yellow
+Write-Host "URL: http://localhost:`$Port" -ForegroundColor Yellow
+Write-Host ""
+
+`$env:ASPNETCORE_URLS = "http://+:`$Port"
+`$env:ASPNETCORE_ENVIRONMENT = "Development"
+
+cd "$deployPath"
+
+Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
+Write-Host ""
+
+dotnet PokeNet.dll
+
+Write-Host ""
+Write-Host "Aplicación detenida" -ForegroundColor Yellow
+"@
+
+          Set-Content -Path $scriptPath -Value $script -Force
           Write-Host "[OK] Script de inicio creado: $scriptPath" -ForegroundColor Green
 
       - name: Iniciar Kestrel en background
