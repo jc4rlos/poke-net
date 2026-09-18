@@ -1,0 +1,166 @@
+name: Deploy Dev - Manual por Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag dev-vX.X.X a desplegar (ej: dev-v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout al tag especificado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+
+      - name: Validar formato del tag
+        shell: powershell
+        run: |
+          $tag = "${{ github.event.inputs.tag }}"
+          if ($tag -notmatch '^dev-v\d+\.\d+\.\d+') {
+            Write-Host "ERROR: El tag debe tener formato dev-vX.X.X (ej: dev-v1.0.0)" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "✅ Tag validado: $tag" -ForegroundColor Green
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restaurar dependencias
+        shell: powershell
+        run: |
+          Write-Host "Restaurando dependencias..." -ForegroundColor Cyan
+          dotnet restore
+          Write-Host "✅ Dependencias restauradas" -ForegroundColor Green
+
+      - name: Compilar (Release)
+        shell: powershell
+        run: |
+          Write-Host "Compilando en modo Release..." -ForegroundColor Cyan
+          dotnet build -c Release --no-restore
+          Write-Host "✅ Compilación completada" -ForegroundColor Green
+
+      - name: Publicar
+        shell: powershell
+        run: |
+          Write-Host "Publicando..." -ForegroundColor Cyan
+          dotnet publish -c Release -o ./publish --no-build
+          Write-Host "✅ Publicación completada" -ForegroundColor Green
+
+      - name: Validar publicación
+        shell: powershell
+        run: |
+          if (-not (Test-Path "./publish/appsettings.json")) {
+            Write-Host "ERROR: publish/appsettings.json no existe" -ForegroundColor Red
+            exit 1
+          }
+          if (-not (Test-Path "./publish/PokeNet.dll")) {
+            Write-Host "ERROR: publish/PokeNet.dll no existe" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "✅ Publicación validada" -ForegroundColor Green
+
+      - name: Listar archivos publicados
+        shell: powershell
+        run: |
+          Write-Host ""
+          Write-Host "Archivos en ./publish:" -ForegroundColor Cyan
+          Get-ChildItem -Path ./publish -File | Select-Object Name, @{n='SizeMB';e={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
+          $fileCount = (Get-ChildItem -Path ./publish -Recurse -File).Count
+          Write-Host "Total de archivos: $fileCount" -ForegroundColor Cyan
+
+      - name: Copiar a carpeta de despliegue
+        shell: powershell
+        run: |
+          $deployPath = "C:\pokenet-deploy"
+          if (-not (Test-Path $deployPath)) {
+            New-Item -ItemType Directory -Path $deployPath -Force | Out-Null
+          }
+
+          Write-Host "Copiando archivos a: $deployPath" -ForegroundColor Cyan
+          Copy-Item -Path ".\publish\*" -Destination $deployPath -Recurse -Force
+          Write-Host "✅ Archivos copiados" -ForegroundColor Green
+
+      - name: Crear script de inicio
+        shell: powershell
+        run: |
+          $scriptPath = "C:\pokenet-deploy\start-kestrel.ps1"
+          $scriptContent = @'
+# Script para iniciar PokeNet en Kestrel
+param(
+    [int]$Port = 5000
+)
+
+Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "  Iniciando PokeNet en Kestrel" -ForegroundColor Cyan
+Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Puerto: $Port" -ForegroundColor Yellow
+Write-Host "URL: http://localhost:$Port" -ForegroundColor Yellow
+Write-Host ""
+
+$env:ASPNETCORE_URLS = "http://+:$Port"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+
+cd "C:\pokenet-deploy"
+
+Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
+Write-Host ""
+
+dotnet PokeNet.dll
+
+Write-Host ""
+Write-Host "Aplicación detenida" -ForegroundColor Yellow
+'@
+
+          Set-Content -Path $scriptPath -Value $scriptContent -Force
+          Write-Host "✅ Script de inicio creado: $scriptPath" -ForegroundColor Green
+
+      - name: Resumen del despliegue
+        if: success()
+        shell: powershell
+        run: |
+          Write-Host ""
+          Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+          Write-Host "  ✅ DESPLIEGUE COMPLETADO EN RUNNER LOCAL" -ForegroundColor Green
+          Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "Tag:              ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
+          Write-Host "Ambiente:         Desarrollo (DEV)" -ForegroundColor Cyan
+          Write-Host "Fecha:            $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
+          Write-Host "Carpeta:          C:\pokenet-deploy" -ForegroundColor Cyan
+          Write-Host "Servidor:         Kestrel" -ForegroundColor Cyan
+          Write-Host ""
+          Write-Host "PROXIMOS PASOS:" -ForegroundColor Yellow
+          Write-Host "1. Abre PowerShell" -ForegroundColor White
+          Write-Host "2. Ejecuta: C:\pokenet-deploy\start-kestrel.ps1 -Port 5000" -ForegroundColor White
+          Write-Host "3. Abre en navegador: http://localhost:5000" -ForegroundColor White
+          Write-Host ""
+          Write-Host "Para detener: Presiona Ctrl+C en PowerShell" -ForegroundColor Cyan
+          Write-Host ""
+
+      - name: Notificar fallo
+        if: failure()
+        shell: powershell
+        run: |
+          Write-Host ""
+          Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Red
+          Write-Host "  ❌ FALLO EN EL DESPLIEGUE" -ForegroundColor Red
+          Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Red
+          Write-Host ""
+          Write-Host "Tag:   ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
+          Write-Host "Estado: FALLIDO" -ForegroundColor Red
+          Write-Host ""
+          Write-Host "Revisa los logs arriba para más detalles" -ForegroundColor Yellow
+          Write-Host ""
+          exit 1
