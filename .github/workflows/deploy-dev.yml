@@ -64,14 +64,14 @@ jobs:
         run: |
           $port = "${{ vars.KESTREL_PORT }}"
           $path = "${{ vars.DEPLOY_PATH }}"
-          $script = @"
-          param([int]`$Port = $port)
-          `$env:ASPNETCORE_URLS = "http://+:`$Port"
-          `$env:ASPNETCORE_ENVIRONMENT = "Development"
-          cd "$path"
-          dotnet PokeNet.dll
-"@
-          $script | Set-Content -Path "$path\start-kestrel.ps1" -Force
+          $lines = @(
+            "param([int]`$Port = $port)",
+            "`$env:ASPNETCORE_URLS = `"http://+:`$Port`"",
+            "`$env:ASPNETCORE_ENVIRONMENT = `"Development`"",
+            "cd `"$path`"",
+            "dotnet PokeNet.dll"
+          )
+          $lines -join "`n" | Set-Content -Path "$path\start-kestrel.ps1" -Force
 
       - name: Start Kestrel
         shell: powershell
