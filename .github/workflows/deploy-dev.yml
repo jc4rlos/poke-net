@@ -95,35 +95,31 @@ jobs:
         shell: powershell
         run: |
           $scriptPath = "C:\pokenet-deploy\start-kestrel.ps1"
-          $scriptContent = @'
-# Script para iniciar PokeNet en Kestrel
-param(
-    [int]$Port = 5000
-)
-
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Iniciando PokeNet en Kestrel" -ForegroundColor Cyan
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Puerto: $Port" -ForegroundColor Yellow
-Write-Host "URL: http://localhost:$Port" -ForegroundColor Yellow
-Write-Host ""
-
-$env:ASPNETCORE_URLS = "http://+:$Port"
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-
-cd "C:\pokenet-deploy"
-
-Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
-Write-Host ""
-
-dotnet PokeNet.dll
-
-Write-Host ""
-Write-Host "Aplicación detenida" -ForegroundColor Yellow
-'@
-
-          Set-Content -Path $scriptPath -Value $scriptContent -Force
+          $lines = @(
+            'param([int]$Port = 5000)',
+            '',
+            'Write-Host "===============================================================" -ForegroundColor Cyan',
+            'Write-Host "  Iniciando PokeNet en Kestrel" -ForegroundColor Cyan',
+            'Write-Host "===============================================================" -ForegroundColor Cyan',
+            'Write-Host ""',
+            'Write-Host "Puerto: $Port" -ForegroundColor Yellow',
+            'Write-Host "URL: http://localhost:$Port" -ForegroundColor Yellow',
+            'Write-Host ""',
+            '',
+            '$env:ASPNETCORE_URLS = "http://+:$Port"',
+            '$env:ASPNETCORE_ENVIRONMENT = "Development"',
+            '',
+            'cd "C:\pokenet-deploy"',
+            '',
+            'Write-Host "Iniciando aplicación..." -ForegroundColor Cyan',
+            'Write-Host ""',
+            '',
+            'dotnet PokeNet.dll',
+            '',
+            'Write-Host ""',
+            'Write-Host "Aplicación detenida" -ForegroundColor Yellow'
+          )
+          $lines | Set-Content -Path $scriptPath -Force
           Write-Host "✅ Script de inicio creado: $scriptPath" -ForegroundColor Green
 
       - name: Resumen del despliegue
