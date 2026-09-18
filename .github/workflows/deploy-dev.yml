@@ -26,7 +26,6 @@ jobs:
         run: |
           Write-Host "[INFO] Buscando proceso en puerto $env:KESTREL_PORT..." -ForegroundColor Cyan
           $connection = Get-NetTCPConnection -LocalPort $env:KESTREL_PORT -State Listen -ErrorAction SilentlyContinue
-
           if ($connection) {
             $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
             if ($process) {
@@ -50,7 +49,7 @@ jobs:
         run: |
           $tag = "${{ github.event.inputs.tag }}"
           if ($tag -notmatch '^dev-v\d+\.\d+\.\d+') {
-            Write-Host "ERROR: El tag debe tener formato dev-vX.X.X (ej: dev-v1.0.0)" -ForegroundColor Red
+            Write-Host "ERROR: El tag debe tener formato dev-vX.X.X" -ForegroundColor Red
             exit 1
           }
           Write-Host "[OK] Tag validado: $tag" -ForegroundColor Green
@@ -72,23 +71,20 @@ jobs:
         run: |
           Write-Host "[INFO] Compilando en modo Release..." -ForegroundColor Cyan
           dotnet build -c Release --no-restore
-          Write-Host "[OK] Compilación completada" -ForegroundColor Green
+          Write-Host "[OK] Compilacion completada" -ForegroundColor Green
 
       - name: Publicar a carpeta de despliegue
         shell: powershell
         run: |
           $deployPath = $env:DEPLOY_PATH
           Write-Host "[INFO] Publicando a: $deployPath" -ForegroundColor Cyan
-
           if (-not (Test-Path $deployPath)) {
             New-Item -ItemType Directory -Path $deployPath -Force | Out-Null
-            Write-Host "[OK] Carpeta creada" -ForegroundColor Green
           }
-
           dotnet publish -c Release -o $deployPath --no-build
-          Write-Host "[OK] Publicación completada" -ForegroundColor Green
+          Write-Host "[OK] Publicacion completada" -ForegroundColor Green
 
-      - name: Validar publicación
+      - name: Validar publicacion
         shell: powershell
         run: |
           $deployPath = $env:DEPLOY_PATH
@@ -96,21 +92,7 @@ jobs:
             Write-Host "ERROR: $deployPath/appsettings.json no existe" -ForegroundColor Red
             exit 1
           }
-          if (-not (Test-Path "$deployPath/PokeNet.dll")) {
-            Write-Host "ERROR: $deployPath/PokeNet.dll no existe" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host "[OK] Publicación validada" -ForegroundColor Green
-
-      - name: Listar archivos publicados
-        shell: powershell
-        run: |
-          $deployPath = $env:DEPLOY_PATH
-          Write-Host ""
-          Write-Host "[INFO] Archivos en $deployPath" -ForegroundColor Cyan
-          Get-ChildItem -Path $deployPath -File | Select-Object Name, @{n='SizeMB';e={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
-          $fileCount = (Get-ChildItem -Path $deployPath -Recurse -File).Count
-          Write-Host "[INFO] Total de archivos: $fileCount" -ForegroundColor Cyan
+          Write-Host "[OK] Publicacion validada" -ForegroundColor Green
 
   deploy:
     name: Deploy to Kestrel
@@ -121,7 +103,6 @@ jobs:
       KESTREL_PORT: ${{ vars.KESTREL_PORT }}
       KESTREL_URL: ${{ vars.KESTREL_URL }}
       APP_NAME: ${{ vars.APP_NAME }}
-      LOG_FILE_PATH: ${{ vars.LOG_FILE_PATH }}
 
     steps:
       - name: Crear script de inicio
@@ -132,40 +113,21 @@ jobs:
           $appName = $env:APP_NAME
           $deployPath = $env:DEPLOY_PATH
 
-          $script = @"
-param([int]`$Port = $port)
+          $content = "param(`$Port = $port)`n" +
+            "Write-Host 'Puerto: '`$Port -ForegroundColor Yellow`n" +
+            "`$env:ASPNETCORE_URLS = 'http://+:'`$Port`n" +
+            "`$env:ASPNETCORE_ENVIRONMENT = 'Development'`n" +
+            "cd '$deployPath'`n" +
+            "dotnet PokeNet.dll`n"
 
-Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host "  Iniciando $appName en Kestrel" -ForegroundColor Cyan
-Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Puerto: `$Port" -ForegroundColor Yellow
-Write-Host "URL: http://localhost:`$Port" -ForegroundColor Yellow
-Write-Host ""
-
-`$env:ASPNETCORE_URLS = "http://+:`$Port"
-`$env:ASPNETCORE_ENVIRONMENT = "Development"
-
-cd "$deployPath"
-
-Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
-Write-Host ""
-
-dotnet PokeNet.dll
-
-Write-Host ""
-Write-Host "Aplicación detenida" -ForegroundColor Yellow
-"@
-
-          Set-Content -Path $scriptPath -Value $script -Force
-          Write-Host "[OK] Script de inicio creado: $scriptPath" -ForegroundColor Green
+          Set-Content -Path $scriptPath -Value $content -Force
+          Write-Host "[OK] Script creado: $scriptPath" -ForegroundColor Green
 
       - name: Iniciar Kestrel en background
         shell: powershell
         run: |
-          Write-Host "[INFO] Iniciando Kestrel en background..." -ForegroundColor Cyan
-
           $scriptPath = Join-Path $env:DEPLOY_PATH "start-kestrel.ps1"
+          Write-Host "[INFO] Iniciando Kestrel..." -ForegroundColor Cyan
 
           Start-Process -NoNewWindow -FilePath powershell.exe `
             -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Port $env:KESTREL_PORT"
@@ -173,52 +135,26 @@ Write-Host "Aplicación detenida" -ForegroundColor Yellow
           Start-Sleep -Seconds 3
 
           if (Test-NetConnection -ComputerName localhost -Port $env:KESTREL_PORT -WarningAction SilentlyContinue) {
-            Write-Host "[OK] Kestrel está escuchando en $env:KESTREL_URL" -ForegroundColor Green
+            Write-Host "[OK] Kestrel escuchando en $env:KESTREL_URL" -ForegroundColor Green
           } else {
-            Write-Host "[WARN] Verificando Kestrel..." -ForegroundColor Yellow
+            Write-Host "[WARN] Verificando..." -ForegroundColor Yellow
           }
 
-          Write-Host "[INFO] Para ver logs: Get-Content $env:LOG_FILE_PATH -Tail 50" -ForegroundColor Cyan
-
-      - name: Resumen del despliegue
+      - name: Resumen
         if: success()
         shell: powershell
         run: |
           Write-Host ""
-          Write-Host ""
-          Write-Host "   DESPLIEGUE COMPLETADO EN RUNNER LOCAL" -ForegroundColor Green
-          Write-Host ""
-          Write-Host ""
-          Write-Host "Tag:              ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
-          Write-Host "App:              $env:APP_NAME" -ForegroundColor Cyan
-          Write-Host "Ambiente:         Desarrollo (DEV)" -ForegroundColor Cyan
-          Write-Host "Fecha:            $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
-          Write-Host "Carpeta:          $env:DEPLOY_PATH" -ForegroundColor Cyan
-          Write-Host "Servidor:         Kestrel (en background)" -ForegroundColor Cyan
-          Write-Host "URL:              $env:KESTREL_URL" -ForegroundColor Cyan
-          Write-Host ""
-          Write-Host "ESTADO:" -ForegroundColor Yellow
-          Write-Host "[OK] Kestrel está corriendo en background" -ForegroundColor Green
-          Write-Host "[OK] App disponible en $env:KESTREL_URL" -ForegroundColor Green
-          Write-Host ""
-          Write-Host "COMANDOS UTILES:" -ForegroundColor Cyan
-          Write-Host "Detener:  taskkill /IM dotnet.exe /F" -ForegroundColor White
-          Write-Host "Ver logs: Get-Content $env:LOG_FILE_PATH -Tail 50" -ForegroundColor White
+          Write-Host "DESPLIEGUE COMPLETADO" -ForegroundColor Green
+          Write-Host "Tag: ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
+          Write-Host "URL: $env:KESTREL_URL" -ForegroundColor Cyan
           Write-Host ""
 
-      - name: Notificar fallo
+      - name: Error
         if: failure()
         shell: powershell
         run: |
           Write-Host ""
-          Write-Host ""
-          Write-Host "   FALLO EN EL DESPLIEGUE" -ForegroundColor Red
-          Write-Host ""
-          Write-Host ""
-          Write-Host "Tag:      ${{ github.event.inputs.tag }}" -ForegroundColor Cyan
-          Write-Host "App:      $env:APP_NAME" -ForegroundColor Cyan
-          Write-Host "Estado:   FALLIDO" -ForegroundColor Red
-          Write-Host ""
-          Write-Host "Revisa los logs arriba para más detalles" -ForegroundColor Yellow
+          Write-Host "FALLO EN EL DESPLIEGUE" -ForegroundColor Red
           Write-Host ""
           exit 1
