@@ -14,6 +14,8 @@ permissions:
 jobs:
   create-tag:
     runs-on: ubuntu-latest
+    env:
+      TAG_PREFIX: ${{ vars.DEV_TAG_PREFIX }}
     steps:
       - name: Checkout develop branch
         uses: actions/checkout@v4
@@ -40,16 +42,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version encontrada: $VERSION"
 
-      - name: Generar tag dev-vVERSION
+      - name: Generar tag
         id: tag
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_SUFFIX="${{ inputs.version_suffix }}"
+          TAG_PREFIX="${{ env.TAG_PREFIX }}"
 
           if [ -z "$VERSION_SUFFIX" ]; then
-            TAG="dev-v$VERSION"
+            TAG="${TAG_PREFIX}${VERSION}"
           else
-            TAG="dev-v$VERSION-$VERSION_SUFFIX"
+            TAG="${TAG_PREFIX}${VERSION}-${VERSION_SUFFIX}"
           fi
 
           echo "tag=$TAG" >> $GITHUB_OUTPUT
