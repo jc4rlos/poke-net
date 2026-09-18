@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PokeNet</title>
+    <link rel="icon" href="~/favicon.ico" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        poke: {
+                            red: '#EE1515',
+                            blue: '#3B4CCA',
+                            yellow: '#FFDE00',
+                            gold: '#B3A125',
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="h-full flex flex-col bg-slate-950 text-slate-100 antialiased">
+    <header class="border-b border-white/10 bg-slate-950/80 backdrop-blur sticky top-0 z-10">
+        <nav class="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+            <a asp-area="" asp-page="/Index" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+                <span class="inline-block h-3 w-3 rounded-full bg-poke-red ring-2 ring-white"></span>
+                Poke<span class="text-poke-yellow">Net</span>
+            </a>
+            <a href="/health" class="text-sm text-slate-400 hover:text-white transition-colors">Health</a>
+        </nav>
+    </header>
+
+    <main class="flex-1">
+        @RenderBody()
+    </main>
+
+    <footer class="border-t border-white/10 text-center text-sm text-slate-500 py-6">
+        &copy; 2026 PokeNet &mdash; POC hecho con ASP.NET Core 8 &amp; Tailwind CSS
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

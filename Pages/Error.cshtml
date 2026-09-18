@@ -1,0 +1,21 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="mx-auto max-w-2xl px-6 py-24 text-center">
+    <h1 class="text-4xl font-extrabold text-poke-red">Algo salió mal</h1>
+    <p class="mt-4 text-slate-400">Ocurrió un error al procesar tu solicitud.</p>
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="mt-6 text-sm text-slate-500">
+            Request ID: <code class="rounded bg-white/5 px-2 py-1">@Model.RequestId</code>
+        </p>
+    }
+
+    <a asp-page="/Index" class="mt-10 inline-block rounded-lg bg-poke-red px-6 py-3 font-semibold hover:bg-red-600 transition-colors">
+        Volver al inicio
+    </a>
+</div>
