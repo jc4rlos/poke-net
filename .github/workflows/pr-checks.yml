@@ -1,0 +1,32 @@
+name: PR Checks
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore
+        run: dotnet restore
+      
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Format Check
+        run: dotnet format --verify-no-changes
+      
+
+  code-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Analyze
+        run: dotnet build --configuration Release /p:EnableNETAnalyzers=true /p:AnalysisTreatWarningsAsErrors=true
