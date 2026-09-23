@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SonarQubeAnalysisProperties xmlns="http://www.sonarsource.com/msbuild/integration/2015/1">
+  <Property Name="sonar.organization">jc4rlos</Property>
+  <Property Name="sonar.exclusions">**/bin/**,**/obj/**,**/node_modules/**</Property>
+</SonarQubeAnalysisProperties>
