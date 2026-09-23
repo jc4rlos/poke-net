@@ -34,11 +34,21 @@
 </section>
 
 <section id="pokedex" class="mx-auto max-w-6xl px-6 pb-24">
-    <h2 class="text-2xl font-bold mb-8">Pokédex destacada</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <h2 class="text-2xl font-bold">Pokédex destacada</h2>
+        <div class="relative w-full sm:w-72">
+            <input type="search" id="pokemonSearch" placeholder="Buscar por nombre..."
+                   class="w-full rounded-lg bg-white/5 px-4 py-2.5 text-sm ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-poke-blue transition-shadow"
+                   autocomplete="off" />
+        </div>
+    </div>
+    <p id="noResults" class="hidden text-slate-400 text-center py-12">
+        No se encontraron Pokémon con ese nombre.
+    </p>
+    <div id="pokemonGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         @foreach (var pokemon in Model.FeaturedPokemon)
         {
-            <article class="group rounded-2xl bg-white/5 ring-1 ring-white/10 p-6 hover:ring-white/25 hover:bg-white/[0.07] transition-all cursor-pointer pokemon-card" data-pokemon-id="@pokemon.Id">
+            <article class="group rounded-2xl bg-white/5 ring-1 ring-white/10 p-6 hover:ring-white/25 hover:bg-white/[0.07] transition-all cursor-pointer pokemon-card" data-pokemon-id="@pokemon.Id" data-pokemon-name="@pokemon.Name.ToLowerInvariant()">
                 <div class="flex items-center justify-center h-32">
                     <img src="@pokemon.SpriteUrl" alt="@pokemon.Name"
                          class="h-full object-contain drop-shadow-lg group-hover:scale-105 transition-transform" loading="lazy" />
@@ -71,35 +81,4 @@
     </div>
 </div>
 
-<script>
-    const modal = document.getElementById('pokemonModal');
-    const closeBtn = document.getElementById('closeModal');
-    const pokemonCards = document.querySelectorAll('.pokemon-card');
-
-    pokemonCards.forEach(card => {
-        card.addEventListener('click', async () => {
-            const pokemonId = card.dataset.pokemonId;
-            try {
-                const response = await fetch(`?handler=Details&id=${pokemonId}`);
-                if (!response.ok) throw new Error('No encontrado');
-
-                const data = await response.json();
-
-                document.getElementById('modalImage').src = data.spriteUrl;
-                document.getElementById('modalName').textContent = data.name;
-                document.getElementById('modalType').textContent = `Tipo: ${data.type}`;
-                document.getElementById('modalDescription').textContent = data.description;
-
-                modal.classList.remove('hidden');
-            } catch (error) {
-                console.error('Error:', error);
-                alert('No se pudo cargar el Pokémon');
-            }
-        });
-    });
-
-    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.add('hidden');
-    });
-</script>
+<script src="~/js/index.js"></script>
