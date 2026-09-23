@@ -55,6 +55,7 @@ jobs:
         shell: bash
         run: |
           ~/.sonar/scanner/dotnet-sonarscanner begin \
+            /s:sonar-project.properties \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
           dotnet build --configuration Release
           ~/.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
