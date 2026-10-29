@@ -1,0 +1,32 @@
+<div x-show="totalPages > 1 && !isLoading" class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6">
+    <div class="text-sm text-slate-400">
+        <span x-show="totalPokemon > 0">
+            Mostrando <span x-text="(currentPage - 1) * pageSize + 1"></span> -
+            <span x-text="Math.min(currentPage * pageSize, totalPokemon)"></span>
+            de <span x-text="totalPokemon"></span> pokemones
+        </span>
+        <span x-show="totalPokemon === 0">
+            Página <span x-text="currentPage"></span> de <span x-text="totalPages"></span>
+        </span>
+    </div>
+
+    <div class="flex gap-2">
+        <button @@click="prevPage()"
+                :disabled="currentPage === 1"
+                :class="{ 'opacity-50 cursor-not-allowed': currentPage === 1 }"
+                class="px-4 py-2 rounded-lg bg-poke-red hover:bg-red-600 disabled:hover:bg-poke-red text-white font-medium transition-colors">
+            ← Anterior
+        </button>
+        <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg ring-1 ring-white/10">
+            <span x-text="currentPage"></span>
+            <span class="text-slate-400">/</span>
+            <span x-text="totalPages"></span>
+        </div>
+        <button @@click="nextPage()"
+                :disabled="currentPage === totalPages"
+                :class="{ 'opacity-50 cursor-not-allowed': currentPage === totalPages }"
+                class="px-4 py-2 rounded-lg bg-poke-red hover:bg-red-600 disabled:hover:bg-poke-red text-white font-medium transition-colors">
+            Siguiente →
+        </button>
+    </div>
+</div>
