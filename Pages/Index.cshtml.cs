@@ -22,7 +22,7 @@ public sealed class IndexModel(ILogger<IndexModel> logger, PokemonService pokemo
         var pokemon = await _pokemonService.GetPokemonByIdAsync(id);
         if (pokemon is null)
             return NotFound(new { error = $"Pokémon con ID {id} no encontrado" });
-            
+
         return new JsonResult(pokemon);
     }
 
