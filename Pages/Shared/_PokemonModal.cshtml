@@ -1,0 +1,16 @@
+<div x-show="selectedPokemon !== null" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-900 rounded-2xl max-w-md w-full ring-1 ring-white/10 shadow-2xl"
+         @@click.stop>
+        <div class="p-6">
+            <button @@click="closeModal()" class="float-right text-slate-400 hover:text-white text-2xl">&times;</button>
+            <div class="mt-4 text-center">
+                <div class="h-40 flex items-center justify-center">
+                    <img :src="selectedPokemon?.spriteUrl" alt="" class="h-full object-contain" />
+                </div>
+                <h2 class="text-2xl font-bold mt-4" x-text="capitalize(selectedPokemon?.name)"></h2>
+                <p class="text-sm mt-3 inline-block rounded-full px-3 py-1 text-xs font-medium ring-1 capitalize" :class="getTypeColor(selectedPokemon?.type)" x-text="selectedPokemon?.type"></p>
+                <p class="text-slate-300 mt-4 text-sm leading-relaxed" x-text="selectedPokemon?.description"></p>
+            </div>
+        </div>
+    </div>
+</div>
